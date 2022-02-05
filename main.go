@@ -15,11 +15,8 @@ import (
 	"time"
 )
 
-var filename = "abcd"
-var fileSuffix = ".txt" //".txt"
 var inputFilePath string = ""
 var outputFilePath string = ""
-var undedupOutputFilePath string
 
 // deduplication performance
 var (
@@ -145,7 +142,6 @@ func getOffsetsArray(outputFilePath *string) (*[]int, error){
 	if err != nil || n < 4 {
 		//TODO error
 	}
-
 	metadataOffset := binary.LittleEndian.Uint32(buf)
 	outputFile.Seek(int64(metadataOffset),0)
 	metadataReader := bufio.NewReader(outputFile)
@@ -154,17 +150,16 @@ func getOffsetsArray(outputFilePath *string) (*[]int, error){
 	if err != nil {
 		logrus.WithError(err).Errorf("ERROR")
 	}
-	index := 4
+	index := 0
 	metaDataLength := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
 
-	i := 0
+	i := 1
 	offsetsArr := make([]int, 0)
 	for {
-		if i >= int(metaDataLength){
+		if i > int(metaDataLength){
 			break
 		}
-		index += 4
-		offset := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
+		offset := binary.LittleEndian.Uint32(metadataBytes[i*4: (i+1)*4])
 		offsetsArr = append(offsetsArr, int(offset))
 		i++
 	}
