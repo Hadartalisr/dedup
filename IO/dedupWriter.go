@@ -37,6 +37,7 @@ func NewDedupWriter(filePath string, maxChunksInBatch, chunkMaxSize int) (*Dedup
 }
 
 func (dedupWriter *DedupWriter) Close()  error {
+	dedupWriter.OutputFile.Seek(0,0)
 	dedupWriter.OutputFile.Close()
 	return nil
 }

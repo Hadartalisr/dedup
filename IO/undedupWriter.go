@@ -35,6 +35,7 @@ func NewUnDedupWriter(filePath string, chunkMaxSize, maxChunksInBatch int) (*UnD
 func (writer *UnDedupWriter) Close()  error {
 	writer.FlushData()
 	writer.FlushAll()
+	writer.outputFile.Seek(0,0)
 	writer.outputFile.Close()
 	return nil
 }

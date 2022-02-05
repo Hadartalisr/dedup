@@ -17,8 +17,8 @@ import (
 
 var filename = "abcd"
 var fileSuffix = ".txt" //".txt"
-var inputFilePath string
-var outputFilePath string
+var inputFilePath string = ""
+var outputFilePath string = ""
 var undedupOutputFilePath string
 
 // deduplication performance
@@ -66,13 +66,7 @@ func main() {
 	// set debug level
 	logrus.SetLevel(config.LogLevel)
 	// get user input
-	args := os.Args
-	if len(args) < 3 {
-		logrus.Errorf("ERROR - Not enough arguments have been received. expected - 2, got - %d", len(args))
-		os.Exit(1)
-	}
-	inputFilePath = args[1]
-	outputFilePath = args[2]
+	getArgs()
 	shouldDedup := flag.Bool("dedup", false, "indicated if we should dedup")
 	shouldUndedup := flag.Bool("undedup", false, "indicated if we should undedup")
 	shouldCompare := flag.Bool("compare", false, "indicated if we should compare")
@@ -89,10 +83,31 @@ func main() {
 	}
 }
 
+func getArgs() {
+	args := os.Args
+	if len(args) < 4 {
+		logrus.Errorf("ERROR - Not enough arguments have been received. expected - 2, got - %d", len(args))
+		os.Exit(1)
+	}
+
+	for i:=1; i < len(args); i++ {
+		if args[i][0] == '-' {
+			continue
+		}
+		if inputFilePath == "" {
+			inputFilePath = args[i]
+			continue
+		}
+		if outputFilePath == "" {
+			outputFilePath = args[i]
+			break
+		}
+	}
+}
 
 
 func Test () {
-	_, err := test.Equal(inputFilePath,   undedupOutputFilePath)
+	_, err := test.Equal(inputFilePath, outputFilePath)
 	if err != nil {
 		logrus.Debugf("Error occured Equality test")
 		print(err)
@@ -102,9 +117,9 @@ func Test () {
 func UnDedup() error{
 	undedupStartTime := time.Now()
 
-	offsetsArray, _ := getOffsetsArray(&outputFilePath)
-	undedupDataReader, err := IO.NewUndedupFileReader(outputFilePath, config.MaxChunkSizeInBytes)
-	UndedupWriter, err := IO.NewUnDedupWriter(undedupOutputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
+	offsetsArray, _ := getOffsetsArray(&inputFilePath)
+	undedupDataReader, err := IO.NewUndedupFileReader(inputFilePath, config.MaxChunkSizeInBytes)
+	UndedupWriter, err := IO.NewUnDedupWriter(outputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
 
 	for _, offset := range *offsetsArray {
 		data, _ := undedupDataReader.GetChunk(offset) //TODO handle error

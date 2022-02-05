@@ -42,5 +42,6 @@ func (undedupReader *UndedupReader) GetChunk(offset int) (*[]byte, error) {
 }
 
 func (undedupReader *UndedupReader) Close() {
+	undedupReader.file.Seek(0,0)
 	undedupReader.file.Close()
 }

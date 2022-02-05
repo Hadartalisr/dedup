@@ -15,6 +15,7 @@ func InitDedupFileReader(filePath string) (*os.File, *bufio.Reader, error) {
 }
 
 func CloseFile(file *os.File) error {
+	file.Seek(0,0)
 	file.Close()
 	return nil
 }
