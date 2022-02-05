@@ -15,8 +15,8 @@ import (
 	"time"
 )
 
-var filename = "5000-100"
-var fileSuffix = "" //".txt"
+var filename = "abcd"
+var fileSuffix = ".txt" //".txt"
 var inputFilePath = filepath.Join(config.InputDirectoryPath, filename + fileSuffix )
 var outputFilePath = filepath.Join(config.OutputDirectoryPath, filename + "-compressed" + fileSuffix)
 var undedupOutputFilePath = filepath.Join(config.OutputDirectoryPath,  filename + fileSuffix)
@@ -63,6 +63,7 @@ func info(inputFile , outputFile *os.File) {
 }
 
 func main() {
+	logrus.SetLevel(config.LogLevel)
 	Dedup()
 	UnDedup()
 	Test()
@@ -128,11 +129,8 @@ func getOffsetsArray(outputFilePath *string) (*[]int, error){
 
 
 func Dedup() error{
-	initDedupe()
-
 	// init file reader
 	file, reader, err := IO.InitDedupFileReader(inputFilePath)
-
 	if err != nil {
 		logrus.Debugf("Error occured during InitDedupFileReader")
 		print(err)
@@ -141,34 +139,29 @@ func Dedup() error{
 
 
 	dedupWriter, err := IO.NewDedupWriter(outputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
-	startTime = time.Now()
+	defer dedupWriter.Close()
 
+	startTime = time.Now()
 	err = dedup(reader, dedupWriter)
 	if err != nil {
 		logrus.Debugf("Error occured during core")
 		print(err)
 	}
-	defer dedupWriter.Close()
 	dedupWriter.FlushAll()
-
-
-
-
 	info(file, dedupWriter.OutputFile)
+
 	return nil
 }
-
-func initDedupe() {
-	logrus.SetLevel(config.LogLevel)
-}
-
 
 func dedup(reader *bufio.Reader, writer *IO.DedupWriter) error {
 	var err error
 	var newBytes *[]byte
 	// write byte for later - will be used for the offset of the metadata
-	padding := make([]byte, 1)
-	writer.WriteData(&padding)
+	padding := make([]byte, 4)
+	n, err := writer.WriteBlank(&padding)
+	if err != nil || n != 4 {
+		logrus.WithError(err).Errorf("Could not write blank 4 bytes")
+	}
 
 	// write data
 	buffer := make([]byte, 0)

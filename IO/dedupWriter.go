@@ -41,6 +41,11 @@ func (dedupWriter *DedupWriter) Close()  error {
 	return nil
 }
 
+func (writer *DedupWriter) WriteBlank(data *[]byte) (int, error) {
+	return writer.buffer.Write(*data)
+}
+
+
 // WriteData
 // return the number of bytes which were written
 func (writer *DedupWriter) WriteData(data *[]byte) (int, error) {
