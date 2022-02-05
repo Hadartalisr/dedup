@@ -57,6 +57,29 @@ func (writer *DedupWriter) WriteData(data *[]byte) (int, error) {
 	return length+4, nil
 }
 
+func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
+	for _, offset := range offsetsArr {
+		if writer.batchCounter > writer.maxBatch {
+			writer.FlushData()
+		}
+		bytesToWrite := make([]byte, 4)
+		binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
+		writer.batchCounter++
+		writer.buffer.Write(bytesToWrite)
+	}
+	return len(offsetsArr), nil
+}
+
+func (writer *DedupWriter) WriteMataDataOffset(offset int) (int, error) {
+	bytesToWrite := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
+	writer.OutputFile.Seek(0,0)
+	ioWriter :=  bufio.NewWriter(writer.OutputFile)
+	ioWriter.Write(bytesToWrite)
+	return 4, nil
+}
+
+
 func (dedupWriter *DedupWriter) FlushData() error {
 	dedupWriter.writer.Write(dedupWriter.buffer.Bytes()) //TODO handle error
 	logrus.Infof("Wrote %d Bytes to compressed file", len(dedupWriter.buffer.Bytes()))
