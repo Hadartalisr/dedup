@@ -34,7 +34,7 @@ func (undedupReader *UndedupReader) GetChunk(offset int) (*[]byte, error) {
 	 buf := make([]byte, 4+undedupReader.chunkMaxSize)
 	 _, err = io.ReadAtLeast(reader, buf, 4+undedupReader.chunkMaxSize)
 	 length := 	binary.LittleEndian.Uint32(buf[:4])
-	data := buf[4:length]
+	data := buf[4:length+4]
 	return &data, err
 }
 

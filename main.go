@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var filename = "50-10"
+var filename = "5000-100"
 var fileSuffix = "" //".txt"
 var inputFilePath = filepath.Join(inputDirectoryPath, filename + fileSuffix )
 var outputFilePath = filepath.Join(outputDirectoryPath, filename + "-compressed" + fileSuffix)
@@ -69,26 +69,12 @@ func info(inputFile , outputFile *os.File) {
 	logrus.Infof("Input File size - %d Bytes", inputFileSize)
 	logrus.Infof("Output File size - %d Bytes", outputFileSize)
 	logrus.Infof("Dedup factor - %f", float64(inputFileSize)/float64(outputFileSize))
-
-
-	//logrus.Debugf("***** hashToOffset & idToData *****")
-	//for hash, offset := range hashToOffset {
-	//	logrus.Debugf("\thash[%d] offset[%d]\n", hash, offset)
-	//}
-	//logrus.Debugf("***** ***** ***** ***** ***** *****")
-	//logrus.Info("***** hashFile *****")
-	//for _, chunkId := range hashFile {
-	//	logrus.Debugf(strconv.FormatUint(uint64(chunkId), 10))
-	//}
-	//logrus.Debugf("***** ***** ***** ***** ***** *****")
-
 }
 
 func main() {
 	Dedup()
 	UnDedup()
 	Test()
-
 }
 
 func Test () {
@@ -100,6 +86,7 @@ func Test () {
 }
 
 func UnDedup() error{
+	undedupStartTime := time.Now()
 	undedupReader, err := IO.NewUndedupFileReader(outputFilePath, maxChunkSizeInBytes)
 	UndedupWriter, err := IO.NewUnDedupWriter(undedupOutputFilePath, maxChunksInWriterBuffer, maxChunkSizeInBytes)
 	for _, offset := range hashFile {
@@ -108,6 +95,8 @@ func UnDedup() error{
 	}
 	undedupReader.Close()
 	UndedupWriter.Close()
+	elapsedTime := time.Now().Sub(undedupStartTime).Seconds()
+	logrus.Infof("UnDedup time - %f seconds." , elapsedTime)
 	return err
 }
 
@@ -196,7 +185,7 @@ func getBytes(reader *bufio.Reader) (*[]byte, error) {
 func chunk(buffer *[]byte, writer *IO.DedupWriter) (int, error) {
 	cutPoint := minChunkSizeInBytes
 	for {
-		if cutPoint > maxChunkSizeInBytes {
+		if cutPoint > maxChunkSizeInBytes || cutPoint >= len(*buffer) {
 			data := (*buffer)[:minChunkSizeInBytes]
 			newChunkId := getCreateChunk(&data, writer)
 			addChunkToFile(newChunkId)
