@@ -1,25 +1,25 @@
 package main
 
 import (
+	"Deduper/IO"
+	"Deduper/config"
+	"Deduper/crypto"
+	"Deduper/test"
 	"bufio"
-	"deduplication/IO"
-	"deduplication/config"
-	"deduplication/crypto"
-	"deduplication/test"
 	"encoding/binary"
+	"flag"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"time"
 )
 
 var filename = "abcd"
 var fileSuffix = ".txt" //".txt"
-var inputFilePath = filepath.Join(config.InputDirectoryPath, filename + fileSuffix )
-var outputFilePath = filepath.Join(config.OutputDirectoryPath, filename + "-compressed" + fileSuffix)
-var undedupOutputFilePath = filepath.Join(config.OutputDirectoryPath,  filename + fileSuffix)
+var inputFilePath string
+var outputFilePath string
+var undedupOutputFilePath string
 
 // deduplication performance
 var (
@@ -63,11 +63,33 @@ func info(inputFile , outputFile *os.File) {
 }
 
 func main() {
+	// set debug level
 	logrus.SetLevel(config.LogLevel)
-	Dedup()
-	UnDedup()
-	Test()
+	// get user input
+	args := os.Args
+	if len(args) < 3 {
+		logrus.Errorf("ERROR - Not enough arguments have been received. expected - 2, got - %d", len(args))
+		os.Exit(1)
+	}
+	inputFilePath = args[1]
+	outputFilePath = args[2]
+	shouldDedup := flag.Bool("dedup", false, "indicated if we should dedup")
+	shouldUndedup := flag.Bool("undedup", false, "indicated if we should undedup")
+	shouldCompare := flag.Bool("compare", false, "indicated if we should compare")
+	flag.Parse()
+	if *shouldDedup {
+		Dedup()
+	} else if *shouldUndedup {
+		UnDedup()
+	} else if *shouldCompare {
+		Test()
+	} else {
+		logrus.Error("ERROR - nor dedup/undedup/compare flag was passed")
+		os.Exit(1)
+	}
 }
+
+
 
 func Test () {
 	_, err := test.Equal(inputFilePath,   undedupOutputFilePath)
