@@ -42,6 +42,7 @@ func (dedupWriter *DedupWriter) Close()  error {
 }
 
 func (writer *DedupWriter) WriteBlank(data *[]byte) (int, error) {
+	writer.CurrentOffset += len(*data)
 	return writer.buffer.Write(*data)
 }
 
@@ -56,13 +57,16 @@ func (writer *DedupWriter) WriteData(data *[]byte) (int, error) {
 	length := len(*data)
 	bytesToWrite := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytesToWrite, uint32(length))
-	bytesToWrite = append(bytesToWrite, *data...)
+	bytesToWrite = append(bytesToWrite, *data...) // write length 4 bytes + data
 	writer.batchCounter++
 	writer.buffer.Write(bytesToWrite)
-	return length+4, nil
+	return len(bytesToWrite), nil
 }
 
 func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
+	lengthBytes:= make([]byte, 4)
+	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(offsetsArr)))
+	writer.buffer.Write(lengthBytes)
 	for _, offset := range offsetsArr {
 		if writer.batchCounter > writer.maxBatch {
 			writer.FlushData()
@@ -72,7 +76,7 @@ func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
 		writer.batchCounter++
 		writer.buffer.Write(bytesToWrite)
 	}
-	return len(offsetsArr), nil
+	return len(offsetsArr) + 4, nil
 }
 
 func (writer *DedupWriter) WriteMataDataOffset(offset int) (int, error) {
@@ -81,6 +85,7 @@ func (writer *DedupWriter) WriteMataDataOffset(offset int) (int, error) {
 	writer.OutputFile.Seek(0,0)
 	ioWriter :=  bufio.NewWriter(writer.OutputFile)
 	ioWriter.Write(bytesToWrite)
+	ioWriter.Flush()
 	return 4, nil
 }
 

@@ -101,28 +101,35 @@ func getOffsetsArray(outputFilePath *string) (*[]int, error){
 	if err != nil {
 		return nil, err
 	}
+	outputFile.Seek(0,0)
 	reader := bufio.NewReader(outputFile)
 	buf := make([]byte, 4)
 	n, err := io.ReadAtLeast(reader, buf,4)
 	if err != nil || n < 4 {
 		//TODO error
 	}
+
 	metadataOffset := binary.LittleEndian.Uint32(buf)
 	outputFile.Seek(int64(metadataOffset),0)
 	metadataReader := bufio.NewReader(outputFile)
 	metadataBytes, err :=  ioutil.ReadAll(metadataReader)
-	if err != nil || n < 4 {
-		//TODO error
+
+	if err != nil {
+		logrus.WithError(err).Errorf("ERROR")
 	}
-	index := 0
+	index := 4
+	metaDataLength := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
+
+	i := 0
 	offsetsArr := make([]int, 0)
 	for {
-		if index == len(metadataBytes){
+		if i >= int(metaDataLength){
 			break
 		}
+		index += 4
 		offset := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
 		offsetsArr = append(offsetsArr, int(offset))
-		index+=4
+		i++
 	}
 	return &offsetsArr, nil
 }
@@ -150,7 +157,7 @@ func Dedup() error{
 	dedupWriter.FlushAll()
 	info(file, dedupWriter.OutputFile)
 
-	return nil
+	return err
 }
 
 func dedup(reader *bufio.Reader, writer *IO.DedupWriter) error {
@@ -181,11 +188,16 @@ func dedup(reader *bufio.Reader, writer *IO.DedupWriter) error {
 	}
 	if err == io.EOF {
 		err = chunkEOF(&buffer, writer) // maxChunkSizeInBytes <= size of buffer < 2 maxChunkSizeInBytes
-		return nil
+	}
+	if err != nil {
+		logrus.WithError(err).Errorf("Error")
 	}
 	metadataOffset := writer.CurrentOffset
 	// write metadata
-	writer.WriteMataData(offsetsArr)
+	n, err = writer.WriteMataData(offsetsArr)
+	if err != nil {
+		logrus.WithError(err).Errorf("Error - WriteMataData")
+	}
 
 	// write metadata offset
 	writer.WriteMataDataOffset(metadataOffset)
