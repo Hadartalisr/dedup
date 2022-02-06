@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"os"
 )
@@ -49,7 +50,7 @@ func (writer *DedupWriter) WriteBlank(data *[]byte) (int, error) {
 
 
 // WriteData
-// return the number of bytes which were written
+// return the number of bytes which were written (4 + length of data)
 func (writer *DedupWriter) WriteData(data *[]byte) (int, error) {
 	if writer.batchCounter > writer.maxBatch {
 		writer.FlushData()
@@ -65,10 +66,16 @@ func (writer *DedupWriter) WriteData(data *[]byte) (int, error) {
 }
 
 func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
+	printIndex := 0
 	lengthBytes:= make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(offsetsArr)))
 	writer.buffer.Write(lengthBytes)
+	println("len(offsetsArr) : %d. ", len(offsetsArr))
 	for _, offset := range offsetsArr {
+		if printIndex < 40 {
+			printIndex++
+			println(offset)
+		}
 		if writer.batchCounter > writer.maxBatch {
 			writer.FlushData()
 		}
@@ -81,6 +88,7 @@ func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
 }
 
 func (writer *DedupWriter) WriteMataDataOffset(offset int) (int, error) {
+	fmt.Printf("WriteMataDataOffset %d \n", offset)
 	bytesToWrite := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
 	writer.OutputFile.Seek(0,0)

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"flag"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"time"
 )
 
+// vars for users arguments
 var inputFilePath string = ""
 var outputFilePath string = ""
 
@@ -27,37 +29,11 @@ var (
 	outputFileSize = 0
 )
 
-
 // data for the algorithm
+var offsetsArr []int = make([]int, 0)
 var startsSet = make(map[string]struct{})
 var hashToOffset = make(map[uint32]int)
 
-// tmp vars
-var offsetsArr []int = make([]int, 0)
-
-func info(inputFile , outputFile *os.File) {
-	elapsedTime := time.Now().Sub(startTime).Seconds()
-	fileInfo, err := inputFile.Stat()
-	if err != nil {
-		// TODO handle
-	}
-	inputFileSize := fileInfo.Size()
-	fileInfo, err = outputFile.Stat()
-	if err != nil {
-		// TODO handle
-	}
-	outputFileSize := fileInfo.Size()
-
-	inputFileSizeInMB := inputFileSize / (1024 * 1024)
-
-
-	logrus.Infof("Dedup time - %f seconds." , elapsedTime)
-	logrus.Infof("Dedup speed - %f MB/Sec", float64(inputFileSizeInMB)/elapsedTime)
-	logrus.Infof("Chunks FOUNT - %d Chunks NOT FOUNT - %d\n", chunkfound, chunkNotFound)
-	logrus.Infof("Input File size - %d Bytes", inputFileSize)
-	logrus.Infof("Output File size - %d Bytes", outputFileSize)
-	logrus.Infof("Dedup factor - %f", float64(inputFileSize)/float64(outputFileSize))
-}
 
 func main() {
 	// set debug level
@@ -103,68 +79,13 @@ func getArgs() {
 }
 
 
-func Test () {
-	_, err := test.Equal(inputFilePath, outputFilePath)
-	if err != nil {
-		logrus.Debugf("Error occured Equality test")
-		print(err)
-	}
-}
 
-func UnDedup() error{
-	undedupStartTime := time.Now()
 
-	offsetsArray, _ := getOffsetsArray(&inputFilePath)
-	undedupDataReader, err := IO.NewUndedupFileReader(inputFilePath, config.MaxChunkSizeInBytes)
-	UndedupWriter, err := IO.NewUnDedupWriter(outputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
 
-	for _, offset := range *offsetsArray {
-		data, _ := undedupDataReader.GetChunk(offset) //TODO handle error
-		UndedupWriter.WriteData(data)
-	}
-	undedupDataReader.Close()
-	UndedupWriter.Close()
-	elapsedTime := time.Now().Sub(undedupStartTime).Seconds()
-	logrus.Infof("UnDedup time - %f seconds." , elapsedTime)
-	return err
-}
 
-func getOffsetsArray(outputFilePath *string) (*[]int, error){
-	outputFile, err := os.Open(*outputFilePath)
-	defer outputFile.Close()
-	if err != nil {
-		return nil, err
-	}
-	outputFile.Seek(0,0)
-	reader := bufio.NewReader(outputFile)
-	buf := make([]byte, 4)
-	n, err := io.ReadAtLeast(reader, buf,4)
-	if err != nil || n < 4 {
-		//TODO error
-	}
-	metadataOffset := binary.LittleEndian.Uint32(buf)
-	outputFile.Seek(int64(metadataOffset),0)
-	metadataReader := bufio.NewReader(outputFile)
-	metadataBytes, err :=  ioutil.ReadAll(metadataReader)
 
-	if err != nil {
-		logrus.WithError(err).Errorf("ERROR")
-	}
-	index := 0
-	metaDataLength := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
 
-	i := 1
-	offsetsArr := make([]int, 0)
-	for {
-		if i > int(metaDataLength){
-			break
-		}
-		offset := binary.LittleEndian.Uint32(metadataBytes[i*4: (i+1)*4])
-		offsetsArr = append(offsetsArr, int(offset))
-		i++
-	}
-	return &offsetsArr, nil
-}
+
 
 
 func Dedup() error{
@@ -225,11 +146,13 @@ func dedup(reader *bufio.Reader, writer *IO.DedupWriter) error {
 		logrus.WithError(err).Errorf("Error")
 	}
 	metadataOffset := writer.CurrentOffset
+	fmt.Printf("metadataOffset  -------> %d\n", metadataOffset)
 	// write metadata
 	n, err = writer.WriteMataData(offsetsArr)
 	if err != nil {
 		logrus.WithError(err).Errorf("Error - WriteMataData")
 	}
+	writer.FlushData()
 
 	// write metadata offset
 	writer.WriteMataDataOffset(metadataOffset)
@@ -342,14 +265,15 @@ func getChunk(data []byte) (bool, int){ //TODO switch to reference
 // createNewChunk
 // return the chunk offset of the data
 func createNewChunk (data *[]byte, writer *IO.DedupWriter) int  {
-	startsSet[string((*data)[:config.StartLength])] = struct{}{}
+	startsSet[string((*data)[:config.StartLength])] = struct{}{} // for faster performance
 	hash := crypto.Checksum(*data)
 	offset := writer.CurrentOffset
+	hashToOffset[hash] = offset
 	n, err := writer.WriteData(data) //TODO writer to file in a buffer
 	if err != nil {
 		logrus.Debugf("Error WriteString") //TODO handle
 	}
-	hashToOffset[hash] = offset
+	fmt.Printf("hashToOffset[%d] = %d | data length - %d (%d)\n", hash, offset, len(*data), len(*data)+4)
 	writer.CurrentOffset += n
 	logrus.Debugf("\ncreateNewChunk | hashToOffset[%d] = %s \n", hash, offset)
 	return offset
@@ -360,12 +284,116 @@ func addChunkToFile(offest int){
 	offsetsArr = append(offsetsArr, offest)
 }
 
+func info(inputFile , outputFile *os.File) {
+	elapsedTime := time.Now().Sub(startTime).Seconds()
+	fileInfo, err := inputFile.Stat()
+	if err != nil {
+		// TODO handle
+	}
+	inputFileSize := fileInfo.Size()
+	fileInfo, err = outputFile.Stat()
+	if err != nil {
+		// TODO handle
+	}
+	outputFileSize := fileInfo.Size()
+
+	inputFileSizeInMB := inputFileSize / (1024 * 1024)
+
+	logrus.Infof("Dedup time - %f seconds." , elapsedTime)
+	logrus.Infof("Dedup speed - %f MB/Sec", float64(inputFileSizeInMB)/elapsedTime)
+	logrus.Infof("Chunks FOUNT - %d Chunks NOT FOUNT - %d\n", chunkfound, chunkNotFound)
+	logrus.Infof("Input File size - %d Bytes", inputFileSize)
+	logrus.Infof("Output File size - %d Bytes", outputFileSize)
+	logrus.Infof("Dedup factor - %f", float64(inputFileSize)/float64(outputFileSize))
+}
 
 
 
 
 
 
+
+
+
+
+
+
+
+func UnDedup() error{
+	undedupStartTime := time.Now()
+
+	offsetsArray, _ := getOffsetsArray(&inputFilePath)
+	undedupDataReader, err := IO.NewUndedupFileReader(inputFilePath, config.MaxChunkSizeInBytes)
+	UndedupWriter, err := IO.NewUnDedupWriter(outputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
+
+	for _, offset := range *offsetsArray {
+		data, _ := undedupDataReader.GetChunk(offset) //TODO handle error
+		UndedupWriter.WriteData(data)
+	}
+	undedupDataReader.Close()
+	UndedupWriter.Close()
+	elapsedTime := time.Now().Sub(undedupStartTime).Seconds()
+	logrus.Infof("UnDedup time - %f seconds." , elapsedTime)
+	return err
+}
+
+func getOffsetsArray(outputFilePath *string) (*[]int, error){
+	outputFile, err := os.Open(*outputFilePath)
+	defer outputFile.Close()
+	if err != nil {
+		return nil, err
+	}
+	outputFile.Seek(0,0)
+	reader := bufio.NewReader(outputFile)
+	buf := make([]byte, 4)
+	n, err := io.ReadAtLeast(reader, buf,4)
+	if err != nil || n < 4 {
+		//TODO error
+	}
+	metadataOffset := binary.LittleEndian.Uint32(buf)
+	outputFile.Seek(int64(metadataOffset),0)
+	metadataReader := bufio.NewReader(outputFile)
+	metadataBytes, err :=  ioutil.ReadAll(metadataReader)
+
+	if err != nil {
+		logrus.WithError(err).Errorf("ERROR")
+	}
+	index := 0
+	metaDataLength := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
+
+	i := 1
+	offsetsArr := make([]int, 0)
+	for {
+		if i > int(metaDataLength){
+			break
+		}
+		offset := binary.LittleEndian.Uint32(metadataBytes[i*4: (i+1)*4])
+		offsetsArr = append(offsetsArr, int(offset))
+		i++
+	}
+	return &offsetsArr, nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+func Test () {
+	_, err := test.Equal(inputFilePath, outputFilePath)
+	if err != nil {
+		logrus.Debugf("Error occured Equality test")
+		print(err)
+	}
+}
 
 
 
