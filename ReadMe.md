@@ -30,7 +30,7 @@ Using the Deduper is very simple:
 Internal Implementation
 =============
 <h3>The compressed file data structure<h4/>
-  ![Screenshot](compressedFileStructure.png)
+  ![Alt text](./assets/compressedFileStructure.png?raw=true)
 
 <h3>The chunking algorithm </h3> 
 
