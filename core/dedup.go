@@ -10,7 +10,7 @@ import (
 )
 
 // data for the algorithm
-var offsetsArr []int = make([]int, 0)
+var offsetsArr = make([]int, 0)
 var startsSet = make(map[string]struct{})
 var hashToOffset = make(map[uint32]int)
 
@@ -24,11 +24,10 @@ func Dedup(inputFilePath, outputFilePath *string) error{
 	}
 	defer IO.CloseFile(file)
 
-
 	dedupWriter, err := IO.NewDedupWriter(outputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
 	defer dedupWriter.Close()
 
-	err = dedup(reader, dedupWriter)
+	err = dedupe(reader, dedupWriter)
 	if err != nil {
 		logrus.Debugf("Error occured during core")
 		print(err)
@@ -37,37 +36,44 @@ func Dedup(inputFilePath, outputFilePath *string) error{
 	return err
 }
 
-func dedup(reader *bufio.Reader, writer *IO.DedupWriter) error {
+func dedupe(reader *bufio.Reader, writer *IO.DedupWriter) error {
 	var err error
 	var newBytes *[]byte
-	// write byte for later - will be used for the offset of the metadata
+	// write blank 4 bytes - will be used for the offset of the metadata
 	padding := make([]byte, 4)
 	n, err := writer.WriteBlank(&padding)
 	if err != nil || n != 4 {
 		logrus.WithError(err).Errorf("Could not write blank 4 bytes")
+		return err
 	}
 
-	// write data
+	// chunk the data
 	buffer := make([]byte, 0)
 	for {
 		if err != nil {
 			break
 		}
-		if len(buffer) < 2 * config.MaxChunkSizeInBytes { //TODO switch all strings to work with bytes
+		if len(buffer) < 2 * config.MaxChunkSizeInBytes {
 			newBytes, err = getBytes(reader)
 			if err != nil {
 				break
 			}
 			buffer = append(buffer, (*newBytes)[:]...)
 		}
-		index, _ := chunk(&buffer, writer)
-		buffer = buffer[index:]
+		cutPoint, err := chunk(&buffer, writer)
+		if err != nil {
+			logrus.WithError(err)
+			return err
+		}
+		buffer = buffer[cutPoint:]
 	}
+	// chunk the EOF (need special care because we can't allow chunks in less than minChunkSize)
 	if err == io.EOF {
 		err = chunkEOF(&buffer, writer) // maxChunkSizeInBytes <= size of buffer < 2 maxChunkSizeInBytes
 	}
 	if err != nil {
-		logrus.WithError(err).Errorf("Error")
+		logrus.WithError(err)
+		return err
 	}
 	metadataOffset := writer.CurrentOffset
 

@@ -42,48 +42,51 @@ func (dedupWriter *DedupWriter) Close()  error {
 	return nil
 }
 
-func (writer *DedupWriter) WriteBlank(data *[]byte) (int, error) {
-	writer.CurrentOffset += len(*data)
-	return writer.buffer.Write(*data)
+func (dedupWriter *DedupWriter) WriteBlank(data *[]byte) (int, error) {
+	dedupWriter.CurrentOffset += len(*data)
+	return dedupWriter.buffer.Write(*data)
 }
 
 // WriteData
 // return the number of bytes which were written (4 + length of data)
-func (writer *DedupWriter) WriteData(data *[]byte) (int, error) {
-	if writer.batchCounter > writer.maxBatch {
-		writer.FlushData()
+func (dedupWriter *DedupWriter) WriteData(data *[]byte) (int, error) {
+	if dedupWriter.batchCounter > dedupWriter.maxBatch {
+		dedupWriter.FlushData()
 	}
 	// calculate length
 	length := len(*data)
 	bytesToWrite := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytesToWrite, uint32(length))
-	bytesToWrite = append(bytesToWrite, *data...) // write length 4 bytes + data
-	writer.batchCounter++
-	writer.buffer.Write(bytesToWrite)
+	bytesToWrite = append(bytesToWrite, *data...) // write length is 4 bytes + len(data)
+	dedupWriter.batchCounter++
+	dedupWriter.buffer.Write(bytesToWrite)
 	return len(bytesToWrite), nil
 }
 
-func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
+func (dedupWriter *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
 	lengthBytes:= make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(offsetsArr)))
-	writer.WriteBlank(&lengthBytes)
+	dedupWriter.WriteBlank(&lengthBytes)
 	for _, offset := range offsetsArr {
 		bytesToWrite := make([]byte, 4)
 		binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
-		writer.WriteBlank(&bytesToWrite)
+		dedupWriter.WriteBlank(&bytesToWrite)
 	}
 	return len(offsetsArr) + 4, nil
 }
 
-func (writer *DedupWriter) WriteMataDataOffset(offset int) (int, error) {
+func (dedupWriter *DedupWriter) WriteMataDataOffset(offset int) error {
 	logrus.Debugf("WriteMataDataOffset %d \n", offset)
 	bytesToWrite := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
-	writer.OutputFile.Seek(0,0)
-	ioWriter :=  bufio.NewWriter(writer.OutputFile)
-	ioWriter.Write(bytesToWrite[:4])
+	dedupWriter.OutputFile.Seek(0,0)
+	ioWriter :=  bufio.NewWriter(dedupWriter.OutputFile)
+	n, err := ioWriter.Write(bytesToWrite[:4])
+	if err != nil || n != 4 {
+		logrus.WithError(err).Error(n)
+	}
 	ioWriter.Flush()
-	return 4, nil
+	return err
 }
 
 

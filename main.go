@@ -6,6 +6,7 @@ import (
 	"flag"
 	"github.com/sirupsen/logrus"
 	"os"
+	"runtime"
 	"time"
 )
 
@@ -64,33 +65,58 @@ func getArgs() (*string, *string) {
 // info
 // action in ["dedup", "undedup","compare"]
 func info(startTime time.Time, inputFilePath, outputFilePath *string, action string) {
-	inputFile, err := os.Open(*inputFilePath) //TODO handle errors
+	inputFile, err := os.Open(*inputFilePath)
+	if err != nil {
+		logrus.WithError(err)
+		return
+	}
 	outputFile, err := os.Open(*outputFilePath)
-
+	if err != nil {
+		logrus.WithError(err)
+		return
+	}
 	elapsedTime := time.Now().Sub(startTime).Seconds()
 	fileInfo, err := inputFile.Stat()
 	if err != nil {
-		// TODO handle
+		logrus.WithError(err)
+		return
 	}
 	inputFileSize := fileInfo.Size()
 	fileInfo, err = outputFile.Stat()
 	if err != nil {
-		// TODO handle
+		logrus.WithError(err)
+		return
 	}
 	outputFileSize := fileInfo.Size()
-
-	inputFileSizeInMB := inputFileSize / (1024 * 1024)
-
-
+	inputFileSizeInMB := bToMb(uint64(inputFileSize))
+	outputFileSizeInMB := bToMb(uint64(outputFileSize))
 	logrus.Infof("Process time - %f seconds." , elapsedTime)
-	logrus.Infof("Process speed - %f MB/Sec", float64(inputFileSizeInMB)/elapsedTime)
 	logrus.Infof("Input File [%s] size - %d Bytes", *inputFilePath, inputFileSize)
 	logrus.Infof("Output File [%s] size - %d Bytes", *outputFilePath, outputFileSize)
 	if action == "dedup" {
 		logrus.Infof("Dedup factor - %f", float64(inputFileSize)/float64(outputFileSize))
+		logrus.Infof("Process speed - %f MB/Sec", float64(inputFileSizeInMB)/elapsedTime)
+		PrintMemUsage()
+	}
+	if action == "undedup" {
+		logrus.Infof("Process speed - %f MB/Sec", float64(outputFileSizeInMB)/elapsedTime)
+		PrintMemUsage()
 	}
 }
 
+func PrintMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	logrus.Info("***** Memory Usage *****")
+	logrus.Infof("\tAlloc = %d MiB", bToMb(m.Alloc))
+	logrus.Infof("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	logrus.Infof("\tSys = %v MiB", bToMb(m.Sys))
+	logrus.Infof("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return uint64(float64(b) / 1024 / 1024)
+}
 
 
 
