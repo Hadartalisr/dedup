@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"github.com/sirupsen/logrus"
 	"os"
 )
@@ -48,7 +47,6 @@ func (writer *DedupWriter) WriteBlank(data *[]byte) (int, error) {
 	return writer.buffer.Write(*data)
 }
 
-
 // WriteData
 // return the number of bytes which were written (4 + length of data)
 func (writer *DedupWriter) WriteData(data *[]byte) (int, error) {
@@ -66,32 +64,19 @@ func (writer *DedupWriter) WriteData(data *[]byte) (int, error) {
 }
 
 func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
-	printIndex := 0
 	lengthBytes:= make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(offsetsArr)))
 	writer.WriteBlank(&lengthBytes)
-	println("len(offsetsArr) : %d. ", len(offsetsArr))
 	for _, offset := range offsetsArr {
-		if printIndex < 40 {
-			printIndex++
-			println(offset)
-		}
 		bytesToWrite := make([]byte, 4)
 		binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
 		writer.WriteBlank(&bytesToWrite)
 	}
-	println("...\n...\n...")
-	println(offsetsArr[len(offsetsArr)-6])
-	println(offsetsArr[len(offsetsArr)-5])
-	println(offsetsArr[len(offsetsArr)-4])
-	println(offsetsArr[len(offsetsArr)-3])
-	println(offsetsArr[len(offsetsArr)-2])
-	println(offsetsArr[len(offsetsArr)-1])
 	return len(offsetsArr) + 4, nil
 }
 
 func (writer *DedupWriter) WriteMataDataOffset(offset int) (int, error) {
-	fmt.Printf("WriteMataDataOffset %d \n", offset)
+	logrus.Debugf("WriteMataDataOffset %d \n", offset)
 	bytesToWrite := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
 	writer.OutputFile.Seek(0,0)
@@ -104,7 +89,7 @@ func (writer *DedupWriter) WriteMataDataOffset(offset int) (int, error) {
 
 func (dedupWriter *DedupWriter) FlushData() error {
 	dedupWriter.writer.Write(dedupWriter.buffer.Bytes()) //TODO handle error
-	logrus.Infof("Wrote %d Bytes to compressed file", len(dedupWriter.buffer.Bytes()))
+	logrus.Debugf("Wrote %d Bytes to compressed file", len(dedupWriter.buffer.Bytes()))
 	dedupWriter.buffer.Reset()
 	dedupWriter.batchCounter = 0
 	return nil

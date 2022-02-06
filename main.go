@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"flag"
-	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -146,7 +145,7 @@ func dedup(reader *bufio.Reader, writer *IO.DedupWriter) error {
 		logrus.WithError(err).Errorf("Error")
 	}
 	metadataOffset := writer.CurrentOffset
-	fmt.Printf("metadataOffset  -------> %d\n", metadataOffset)
+
 	// write metadata
 	n, err = writer.WriteMataData(offsetsArr)
 	if err != nil {
@@ -273,9 +272,8 @@ func createNewChunk (data *[]byte, writer *IO.DedupWriter) int  {
 	if err != nil {
 		logrus.Debugf("Error WriteString") //TODO handle
 	}
-	fmt.Printf("hashToOffset[%d] = %d | data length - %d (%d)\n", hash, offset, len(*data), len(*data)+4)
+	logrus.Debugf("hashToOffset[%d] = %d | data length - %d (%d)\n", hash, offset, len(*data), len(*data)+4)
 	writer.CurrentOffset += n
-	logrus.Debugf("\ncreateNewChunk | hashToOffset[%d] = %s \n", hash, offset)
 	return offset
 }
 
