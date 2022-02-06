@@ -14,8 +14,8 @@ type UnDedupWriter struct {
 	writer *bufio.Writer
 }
 
-func NewUnDedupWriter(filePath string, chunkMaxSize, maxChunksInBatch int) (*UnDedupWriter, error) {
-	outputFile, err := os.Create(filePath)
+func NewUnDedupWriter(filePath *string, chunkMaxSize, maxChunksInBatch int) (*UnDedupWriter, error) {
+	outputFile, err := os.Create(*filePath)
 	if err != nil {
 		return nil, err
 	}

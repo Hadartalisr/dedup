@@ -13,8 +13,8 @@ type UndedupReader struct {
 	//TODO cache
 }
 
-func NewUndedupFileReader(filePath string, chunkMaxSize int) (*UndedupReader, error) {
-	inputFile, err := os.Open(filePath)
+func NewUndedupFileReader(filePath *string, chunkMaxSize int) (*UndedupReader, error) {
+	inputFile, err := os.Open(*filePath)
 	if err != nil {
 		return nil, err
 	}

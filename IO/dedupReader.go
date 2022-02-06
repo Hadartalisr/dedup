@@ -5,8 +5,8 @@ import (
 	"os"
 )
 
-func InitDedupFileReader(filePath string) (*os.File, *bufio.Reader, error) {
-	inputFile, err := os.Open(filePath)
+func InitDedupFileReader(filePath *string) (*os.File, *bufio.Reader, error) {
+	inputFile, err := os.Open(*filePath)
 	if err != nil {
 		return nil, nil, err
 	}
