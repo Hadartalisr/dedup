@@ -2,66 +2,54 @@ package core
 
 import (
 	"bytes"
-	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
+	"log"
 	"os"
 )
 
 func Compare(inputFilePath, outputFilePath *string) {
-	_, err := equal(*inputFilePath, *outputFilePath)
-	if err != nil {
-		logrus.Debugf("Error occured Equality test")
-		print(err)
+	equal := equal(*inputFilePath, *outputFilePath)
+	if !equal {
+		print(":(")
+		return
 	}
+	print(":)")
 }
 
-func equal(inputFilePath, outputFilePath string) (bool, error){
-	inputFile, err := os.Open(inputFilePath)
-	outputFile, err := os.Open(outputFilePath)
-	readBufferSizeInBytes := 4*200
-	inputBuf := make([]byte, 0, readBufferSizeInBytes)
-	outputBuf := make([]byte, 0, readBufferSizeInBytes)
+func equal(file1, file2 string) bool {
+	// Check file size ...
+	chunkSize := 20
+	f1, err := os.Open(file1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f1.Close()
+
+	f2, err := os.Open(file2)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f2.Close()
 
 	for {
-		// reading the inputFile in buffer
-		n, err := inputFile.Read(inputBuf[:cap(inputBuf)])
-		inputBuf = inputBuf[:n]
-		if n == 0 {
-			if err == nil {
-				continue
+		b1 := make([]byte, chunkSize)
+		_, err1 := f1.Read(b1)
+
+		b2 := make([]byte, chunkSize)
+		_, err2 := f2.Read(b2)
+
+		if err1 != nil || err2 != nil {
+			if err1 == io.EOF && err2 == io.EOF {
+				return true
+			} else if err1 == io.EOF || err2 == io.EOF {
+				return false
+			} else {
+				log.Fatal(err1, err2)
 			}
-			if err == io.EOF {
-				break
-			}
-			return false, err
-		}
-		if err != nil && err != io.EOF {
-			return false, err
-		}
-		// reading the outputFile in buffer
-		m, err := outputFile.Read(outputBuf[:cap(outputBuf)])
-		outputBuf = outputBuf[:m]
-		if m == 0 {
-			if err == nil {
-				continue
-			}
-			if err == io.EOF {
-				break
-			}
-			return false, err
-		}
-		if err != nil && err != io.EOF {
-			return false, err
 		}
 
-		equal := bytes.Compare(inputBuf, outputBuf)
-		if equal != 0 {
-			fmt.Println("!..Slices are not equal..!")
-			return false, err
+		if !bytes.Equal(b1, b2) {
+			return false
 		}
-
 	}
-	fmt.Println("!..Files are equal..!")
-	return true, err
 }
