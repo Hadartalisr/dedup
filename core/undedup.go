@@ -5,6 +5,7 @@ import (
 	"Deduper/config"
 	"bufio"
 	"encoding/binary"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -12,15 +13,24 @@ import (
 	"time"
 )
 
+var cache *lru.Cache
+
 func UnDedup(inputFilePath, outputFilePath *string) error{
 	undedupStartTime := time.Now()
-
 	offsetsArray, _ := getOffsetsArray(inputFilePath)
 	undedupDataReader, err := IO.NewUndedupFileReader(inputFilePath, config.MaxChunkSizeInBytes)
 	UndedupWriter, err := IO.NewUnDedupWriter(outputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
-
+	cache, err = lru.New(config.CacheSize)
+	if err != nil {
+		logrus.WithError(err)
+		return err
+	}
 	for _, offset := range *offsetsArray {
-		data, _ := undedupDataReader.GetChunk(offset) //TODO handle error
+		data, err := getChunkData(offset, undedupDataReader)
+		if err != nil {
+			logrus.WithError(err)
+			return err
+		}
 		UndedupWriter.WriteData(data)
 	}
 	undedupDataReader.Close()
@@ -29,6 +39,22 @@ func UnDedup(inputFilePath, outputFilePath *string) error{
 	logrus.Infof("UnDedup time - %f seconds." , elapsedTime)
 	return err
 }
+
+func getChunkData(offset int, undedupDataReader *IO.UndedupReader) (*[]byte, error){
+	value, ok := cache.Get(offset)
+	if ok && value != nil{
+		data := value.([]byte)
+		return &data, nil
+	}
+	data, err := undedupDataReader.GetChunk(offset)
+	if err != nil {
+		logrus.WithError(err)
+		return nil, err
+	}
+	cache.Add(offset, *data)
+	return data, nil
+}
+
 
 func getOffsetsArray(outputFilePath *string) (*[]int, error){
 	outputFile, err := os.Open(*outputFilePath)

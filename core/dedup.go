@@ -19,18 +19,17 @@ func Dedup(inputFilePath, outputFilePath *string) error{
 	// init file reader
 	file, reader, err := IO.InitDedupFileReader(inputFilePath)
 	if err != nil {
-		logrus.Debugf("Error occured during InitDedupFileReader")
-		print(err)
+		logrus.WithError(err)
+		return err
 	}
 	defer IO.CloseFile(file)
-
+	// init file writer
 	dedupWriter, err := IO.NewDedupWriter(outputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
 	defer dedupWriter.Close()
-
 	err = dedupe(reader, dedupWriter)
 	if err != nil {
-		logrus.Debugf("Error occured during core")
-		print(err)
+		logrus.WithError(err)
+		return err
 	}
 	dedupWriter.FlushAll()
 	return err

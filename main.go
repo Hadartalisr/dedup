@@ -109,7 +109,6 @@ func PrintMemUsage() {
 	runtime.ReadMemStats(&m)
 	logrus.Info("***** Memory Usage *****")
 	logrus.Infof("\tAlloc = %d MiB", bToMb(m.Alloc))
-	logrus.Infof("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
 	logrus.Infof("\tSys = %v MiB", bToMb(m.Sys))
 	logrus.Infof("\tNumGC = %v\n", m.NumGC)
 }

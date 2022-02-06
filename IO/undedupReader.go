@@ -3,6 +3,7 @@ package IO
 import (
 	"bufio"
 	"encoding/binary"
+	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 )
@@ -28,13 +29,15 @@ func NewUndedupFileReader(filePath *string, chunkMaxSize int) (*UndedupReader, e
 func (undedupReader *UndedupReader) GetChunk(offset int) (*[]byte, error) {
 	 _, err := undedupReader.file.Seek(int64(offset),0)
 	 if err != nil {
-	 	//TODO handle
+	 	logrus.WithError(err)
+	 	return nil, err
 	 }
 	 reader := bufio.NewReader(undedupReader.file)
 	 buf := make([]byte, 4+undedupReader.chunkMaxSize)
 	 _, err = io.ReadAtLeast(reader, buf, 4+undedupReader.chunkMaxSize)
 	 if err != nil && err != io.ErrUnexpectedEOF {
-	 	return nil, nil
+		 logrus.WithError(err)
+		 return nil, err
 	 }
 	 length := 	binary.LittleEndian.Uint32(buf[0:4])
 	data := buf[4:length+4]
