@@ -1,14 +1,20 @@
 package core
 
 import (
+	"Deduper/config"
 	"bytes"
 	"io"
 	"log"
 	"os"
 )
 
+var good  = 0
+var bad  = 0
+
 func Compare(inputFilePath, outputFilePath *string) {
 	equal := equal(*inputFilePath, *outputFilePath)
+	println("good ", good)
+	println("bad ", bad)
 	if !equal {
 		print(":(")
 		return
@@ -18,7 +24,7 @@ func Compare(inputFilePath, outputFilePath *string) {
 
 func equal(file1, file2 string) bool {
 	// Check file size ...
-	chunkSize := 20
+	chunkSize := config.MinChunkSizeInBytes
 	f1, err := os.Open(file1)
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +55,10 @@ func equal(file1, file2 string) bool {
 		}
 
 		if !bytes.Equal(b1, b2) {
-			return false
+			//return false
+			bad++
+		} else  {
+			good++
 		}
 	}
 }
