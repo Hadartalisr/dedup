@@ -11,7 +11,6 @@ import (
 type UndedupReader struct {
 	file *os.File
 	chunkMaxSize int
-	//TODO cache
 }
 
 func NewUndedupFileReader(filePath *string, chunkMaxSize int) (*UndedupReader, error) {
