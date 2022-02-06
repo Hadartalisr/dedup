@@ -43,16 +43,21 @@ func main() {
 	shouldUndedup := flag.Bool("undedup", false, "indicated if we should undedup")
 	shouldCompare := flag.Bool("compare", false, "indicated if we should compare")
 	flag.Parse()
+	startTime = time.Now()
 	if *shouldDedup {
 		Dedup()
+		info("dedup")
 	} else if *shouldUndedup {
 		UnDedup()
+		info("undedup")
 	} else if *shouldCompare {
 		Test()
+		info("compare")
 	} else {
 		logrus.Error("ERROR - nor dedup/undedup/compare flag was passed")
 		os.Exit(1)
 	}
+
 }
 
 func getArgs() {
@@ -62,7 +67,7 @@ func getArgs() {
 		os.Exit(1)
 	}
 
-	for i:=1; i < len(args); i++ {
+	for i:=1 ; i < len(args) ; i++ {
 		if args[i][0] == '-' {
 			continue
 		}
@@ -100,15 +105,12 @@ func Dedup() error{
 	dedupWriter, err := IO.NewDedupWriter(outputFilePath, config.MaxChunksInWriterBuffer, config.MaxChunkSizeInBytes)
 	defer dedupWriter.Close()
 
-	startTime = time.Now()
 	err = dedup(reader, dedupWriter)
 	if err != nil {
 		logrus.Debugf("Error occured during core")
 		print(err)
 	}
 	dedupWriter.FlushAll()
-	info(file, dedupWriter.OutputFile)
-
 	return err
 }
 
@@ -282,7 +284,12 @@ func addChunkToFile(offest int){
 	offsetsArr = append(offsetsArr, offest)
 }
 
-func info(inputFile , outputFile *os.File) {
+// info
+// action in ["dedup", "undedup","compare"]
+func info(action string) {
+	inputFile, err := os.Open(inputFilePath)
+	outputFile, err := os.Open(outputFilePath)
+
 	elapsedTime := time.Now().Sub(startTime).Seconds()
 	fileInfo, err := inputFile.Stat()
 	if err != nil {
@@ -297,12 +304,16 @@ func info(inputFile , outputFile *os.File) {
 
 	inputFileSizeInMB := inputFileSize / (1024 * 1024)
 
-	logrus.Infof("Dedup time - %f seconds." , elapsedTime)
-	logrus.Infof("Dedup speed - %f MB/Sec", float64(inputFileSizeInMB)/elapsedTime)
-	logrus.Infof("Chunks FOUNT - %d Chunks NOT FOUNT - %d\n", chunkfound, chunkNotFound)
+
+	logrus.Infof("Process time - %f seconds." , elapsedTime)
+	logrus.Infof("Process speed - %f MB/Sec", float64(inputFileSizeInMB)/elapsedTime)
 	logrus.Infof("Input File size - %d Bytes", inputFileSize)
 	logrus.Infof("Output File size - %d Bytes", outputFileSize)
-	logrus.Infof("Dedup factor - %f", float64(inputFileSize)/float64(outputFileSize))
+
+	if action == "dedup" {
+		logrus.Infof("Dedup - chunks FOUNT - %d Chunks NOT FOUNT - %d\n", chunkfound, chunkNotFound)
+		logrus.Infof("Dedup factor - %f", float64(inputFileSize)/float64(outputFileSize))
+	}
 }
 
 
@@ -364,7 +375,6 @@ func generateOffsetArray(outputFile *os.File, metadataOffset int) *[]int {
 	}
 	index := 0
 	metaDataLength := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
-	println(metaDataLength)
 	offsetsArr := make([]int, 0)
 	for {
 		index++
@@ -389,14 +399,6 @@ func getIntFromReader(reader *bufio.Reader) int {
 	num := binary.LittleEndian.Uint32(arr[:4])
 	return int(num)
 }
-
-
-
-
-
-
-
-
 
 
 
