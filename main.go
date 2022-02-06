@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
+	"io/ioutil"
 	"os"
 	"time"
 )
@@ -359,15 +360,21 @@ func getMetadataOffset(outputFile *os.File) int{
 func generateOffsetArray(outputFile *os.File, metadataOffset int) *[]int {
 	outputFile.Seek(int64(metadataOffset), io.SeekStart)
 	metadataReader := bufio.NewReader(outputFile)
-	metaDataLength := getIntFromReader(metadataReader)
-	fmt.Printf("metaDataLength : %d\n",metaDataLength)
+	metadataBytes, err :=  ioutil.ReadAll(metadataReader)
+	if err != nil {
+		logrus.WithError(err).Errorf("ERROR")
+	}
+	index := 0
+	metaDataLength := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
+	println(metaDataLength)
 	offsetsArr := make([]int, 0)
-	for i := 0 ; i < metaDataLength; i++ {
-		offset := getIntFromReader(metadataReader)
-		if offset == 0 {
-			println("here")
+	for {
+		index++
+		if index > int(metaDataLength){
+			break
 		}
-		offsetsArr = append(offsetsArr, offset)
+		offset := binary.LittleEndian.Uint32(metadataBytes[index*4: (index+1)*4])
+		offsetsArr = append(offsetsArr, int(offset))
 	}
 	return &offsetsArr
 }

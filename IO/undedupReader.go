@@ -36,8 +36,8 @@ func (undedupReader *UndedupReader) GetChunk(offset int) (*[]byte, error) {
 	 if err != nil && err != io.ErrUnexpectedEOF {
 	 	return nil, nil
 	 }
-	 length := 	binary.LittleEndian.Uint32(buf[4:8])
-	data := buf[8:length+8]
+	 length := 	binary.LittleEndian.Uint32(buf[0:4])
+	data := buf[4:length+4]
 	return &data, nil
 }
 

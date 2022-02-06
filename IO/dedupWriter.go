@@ -69,7 +69,7 @@ func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
 	printIndex := 0
 	lengthBytes:= make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(offsetsArr)))
-	writer.writer.Write(lengthBytes)
+	writer.WriteBlank(&lengthBytes)
 	println("len(offsetsArr) : %d. ", len(offsetsArr))
 	for _, offset := range offsetsArr {
 		if printIndex < 40 {
@@ -78,9 +78,8 @@ func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
 		}
 		bytesToWrite := make([]byte, 4)
 		binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
-		writer.writer.Write(bytesToWrite[:4])
+		writer.WriteBlank(&bytesToWrite)
 	}
-	writer.writer.Flush()
 	println("...\n...\n...")
 	println(offsetsArr[len(offsetsArr)-6])
 	println(offsetsArr[len(offsetsArr)-5])
