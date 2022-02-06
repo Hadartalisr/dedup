@@ -69,21 +69,25 @@ func (writer *DedupWriter) WriteMataData(offsetsArr []int) (int, error) {
 	printIndex := 0
 	lengthBytes:= make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(offsetsArr)))
-	writer.buffer.Write(lengthBytes)
+	writer.writer.Write(lengthBytes)
 	println("len(offsetsArr) : %d. ", len(offsetsArr))
 	for _, offset := range offsetsArr {
 		if printIndex < 40 {
 			printIndex++
 			println(offset)
 		}
-		if writer.batchCounter > writer.maxBatch {
-			writer.FlushData()
-		}
 		bytesToWrite := make([]byte, 4)
 		binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
-		writer.batchCounter++
-		writer.buffer.Write(bytesToWrite)
+		writer.writer.Write(bytesToWrite[:4])
 	}
+	writer.writer.Flush()
+	println("...\n...\n...")
+	println(offsetsArr[len(offsetsArr)-6])
+	println(offsetsArr[len(offsetsArr)-5])
+	println(offsetsArr[len(offsetsArr)-4])
+	println(offsetsArr[len(offsetsArr)-3])
+	println(offsetsArr[len(offsetsArr)-2])
+	println(offsetsArr[len(offsetsArr)-1])
 	return len(offsetsArr) + 4, nil
 }
 
@@ -93,7 +97,7 @@ func (writer *DedupWriter) WriteMataDataOffset(offset int) (int, error) {
 	binary.LittleEndian.PutUint32(bytesToWrite, uint32(offset))
 	writer.OutputFile.Seek(0,0)
 	ioWriter :=  bufio.NewWriter(writer.OutputFile)
-	ioWriter.Write(bytesToWrite)
+	ioWriter.Write(bytesToWrite[:4])
 	ioWriter.Flush()
 	return 4, nil
 }

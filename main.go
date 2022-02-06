@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -343,36 +342,49 @@ func getOffsetsArray(outputFilePath *string) (*[]int, error){
 	if err != nil {
 		return nil, err
 	}
-	outputFile.Seek(0,0)
-	reader := bufio.NewReader(outputFile)
-	buf := make([]byte, 4)
-	n, err := io.ReadAtLeast(reader, buf,4)
-	if err != nil || n < 4 {
-		//TODO error
-	}
-	metadataOffset := binary.LittleEndian.Uint32(buf)
-	outputFile.Seek(int64(metadataOffset),0)
-	metadataReader := bufio.NewReader(outputFile)
-	metadataBytes, err :=  ioutil.ReadAll(metadataReader)
-
-	if err != nil {
-		logrus.WithError(err).Errorf("ERROR")
-	}
-	index := 0
-	metaDataLength := binary.LittleEndian.Uint32(metadataBytes[index: index+4])
-
-	i := 1
-	offsetsArr := make([]int, 0)
-	for {
-		if i > int(metaDataLength){
-			break
-		}
-		offset := binary.LittleEndian.Uint32(metadataBytes[i*4: (i+1)*4])
-		offsetsArr = append(offsetsArr, int(offset))
-		i++
-	}
-	return &offsetsArr, nil
+	metadataOffset := getMetadataOffset(outputFile)
+	f, err := os.Open(*outputFilePath)
+	defer f.Close()
+	offsetsArr := generateOffsetArray(f, metadataOffset)
+	return offsetsArr, nil
 }
+
+func getMetadataOffset(outputFile *os.File) int{
+	outputFile.Seek(0, io.SeekStart)
+	reader := bufio.NewReader(outputFile)
+	metadataOffset := getIntFromReader(reader)
+	return metadataOffset
+}
+
+func generateOffsetArray(outputFile *os.File, metadataOffset int) *[]int {
+	outputFile.Seek(int64(metadataOffset), io.SeekStart)
+	metadataReader := bufio.NewReader(outputFile)
+	metaDataLength := getIntFromReader(metadataReader)
+	fmt.Printf("metaDataLength : %d\n",metaDataLength)
+	offsetsArr := make([]int, 0)
+	for i := 0 ; i < metaDataLength; i++ {
+		offset := getIntFromReader(metadataReader)
+		if offset == 0 {
+			println("here")
+		}
+		offsetsArr = append(offsetsArr, offset)
+	}
+	return &offsetsArr
+}
+
+func getIntFromReader(reader *bufio.Reader) int {
+	arr := make([]byte, 0)
+	for i:=0 ; i<4 ; i++ {
+		byte , err := reader.ReadByte() //TODO handle error
+		if err != nil {
+			logrus.WithError(err).Errorf("Error - getIntFromReader")
+		}
+		arr = append(arr, byte)
+	}
+	num := binary.LittleEndian.Uint32(arr[:4])
+	return int(num)
+}
+
 
 
 
