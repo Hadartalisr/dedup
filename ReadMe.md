@@ -29,7 +29,7 @@ Using the Deduper is very simple:
 
 Internal Implementation
 =============
-<h2>The compressed file data structure<h2/>
+<h2>The compressed file data structure</h2>
 
 * <h4>MetaData offset (4 bytes)</h4>The offset for the metadata.
 * <h4>Chunks data</h4>Consist of the chunks' length (4 bytes) and the chunks' data.
