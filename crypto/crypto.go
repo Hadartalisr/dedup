@@ -1,11 +1,13 @@
 package crypto
 
 import (
-	"hash/crc32"
+	"crypto/sha1"
+	"encoding/base64"
 )
 
-var crc32Table = crc32.MakeTable(0xD5828281)
-
-func Checksum(bytes []byte) uint32 {
-	return crc32.Checksum(bytes, crc32Table)
+func Checksum(bytes []byte) string {
+	hasher := sha1.New()
+	hasher.Write(bytes)
+	sha := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
+	return sha
 }

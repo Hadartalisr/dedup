@@ -38,6 +38,9 @@ func (undedupReader *UndedupReader) GetChunk(offset int) (*[]byte, error) {
 		 logrus.WithError(err)
 		 return nil, err
 	 }
+	 if err == io.ErrUnexpectedEOF {
+	 	logrus.WithError(err)
+	 }
 	 length := 	binary.LittleEndian.Uint32(buf[0:4])
 	data := buf[4:length+4]
 	return &data, nil

@@ -5,15 +5,19 @@ import (
 	"Deduper/config"
 	"Deduper/crypto"
 	"bufio"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
+	"os"
 )
 
 // data for the algorithm
 var offsetsArr = make([]int, 0)
 var startsSet = make(map[string]struct{})
-var hashToOffset = make(map[uint32]int)
+var hashToOffset = make(map[string]int)
 
+// for debugging
+var offsetToLength = make(map[int]int)
 
 func Dedup(inputFilePath, outputFilePath *string) error{
 	// init file reader
@@ -32,6 +36,7 @@ func Dedup(inputFilePath, outputFilePath *string) error{
 		return err
 	}
 	dedupWriter.FlushAll()
+	writeDebugMetaData(outputFilePath)
 	return err
 }
 
@@ -51,6 +56,9 @@ func dedupe(reader *bufio.Reader, writer *IO.DedupWriter) error {
 	for {
 		if err != nil {
 			break
+		}
+		if writer.CurrentOffset == 18132792 {
+			println("here")
 		}
 		if len(buffer) < 2 * config.MaxChunkSizeInBytes {
 			newBytes, err = getBytes(reader)
@@ -75,7 +83,6 @@ func dedupe(reader *bufio.Reader, writer *IO.DedupWriter) error {
 		return err
 	}
 	metadataOffset := writer.CurrentOffset
-
 	// write metadata
 	n, err = writer.WriteMataData(offsetsArr)
 	if err != nil {
@@ -94,7 +101,7 @@ func getBytes(reader *bufio.Reader) (*[]byte, error) {
 	logrus.Debugf("getBytes called\n")
 	buf := make([]byte, 0, config.ReadBufferSizeInBytes)
 	n, err := reader.Read(buf[:cap(buf)])
-	buf = buf[:n]
+	bufToRet := buf[:n]
 	if n == 0 {
 		if err == nil || err == io.EOF {
 			return nil, io.EOF
@@ -104,7 +111,7 @@ func getBytes(reader *bufio.Reader) (*[]byte, error) {
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
-	return &buf, nil
+	return &bufToRet, nil
 }
 
 
@@ -113,7 +120,7 @@ func getBytes(reader *bufio.Reader) (*[]byte, error) {
 func chunk(buffer *[]byte, writer *IO.DedupWriter) (int, error) {
 	cutPoint := config.MinChunkSizeInBytes
 	for {
-		if cutPoint > config.MaxChunkSizeInBytes || cutPoint >= len(*buffer) {
+		if cutPoint > config.MaxChunkSizeInBytes || cutPoint >= len(*buffer) { // we got to the MaxChunkSize
 			data := (*buffer)[:config.MinChunkSizeInBytes]
 			newChunkId := getCreateChunk(&data, writer)
 			addChunkToFile(newChunkId)
@@ -196,9 +203,10 @@ func createNewChunk (data *[]byte, writer *IO.DedupWriter) int  {
 	hash := crypto.Checksum(*data)
 	offset := writer.CurrentOffset
 	hashToOffset[hash] = offset
-	n, err := writer.WriteData(data) //TODO writer to file in a buffer
+	offsetToLength[offset] = len(*data)
+	n, err := writer.WriteData(data)
 	if err != nil {
-		logrus.Debugf("Error WriteString") //TODO handle
+		logrus.Debugf("Error WriteString")
 	}
 	logrus.Debugf("hashToOffset[%d] = %d | data length - %d (%d)\n", hash, offset, len(*data), len(*data)+4)
 	writer.CurrentOffset += n
@@ -208,4 +216,21 @@ func createNewChunk (data *[]byte, writer *IO.DedupWriter) int  {
 func addChunkToFile(offest int){
 	logrus.Debugf("addChunkToFile ------> %d", offest)
 	offsetsArr = append(offsetsArr, offest)
+}
+
+func writeDebugMetaData(filePath *string){
+	f, err := os.Create(*filePath + "metadata.txt")
+	if err != nil {
+		logrus.WithError(err)
+	}
+	writer := bufio.NewWriter(f)
+	currentOffset := 0
+	for i := 0; i < len(offsetsArr) ; i++ {
+		offset := offsetsArr[i]
+		str := fmt.Sprintf("Offset:%d | dataOffset:%d, length:%d \n", currentOffset, offset, offsetToLength[offset])
+		currentOffset += offsetToLength[offset]
+		writer.Write([]byte(str))
+	}
+	writer.Flush()
+	f.Close()
 }

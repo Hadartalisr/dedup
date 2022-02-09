@@ -91,7 +91,14 @@ func (dedupWriter *DedupWriter) WriteMataDataOffset(offset int) error {
 
 
 func (dedupWriter *DedupWriter) FlushData() error {
-	dedupWriter.writer.Write(dedupWriter.buffer.Bytes()) //TODO handle error
+	n, err := dedupWriter.writer.Write(dedupWriter.buffer.Bytes())
+	if err != nil {
+		logrus.WithError(err).Fatal()
+		return err
+	}
+	if n != len(dedupWriter.buffer.Bytes()) {
+		logrus.Fatal("FlushData")
+	}
 	logrus.Debugf("Wrote %d Bytes to compressed file", len(dedupWriter.buffer.Bytes()))
 	dedupWriter.buffer.Reset()
 	dedupWriter.batchCounter = 0
