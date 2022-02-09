@@ -82,7 +82,8 @@ func dedupe(reader *bufio.Reader, writer *IO.DedupWriter) error {
 		logrus.WithError(err)
 		return err
 	}
-	metadataOffset := writer.CurrentOffset
+	//metadataOffset := writer.CurrentOffset // for debug
+
 	// write metadata
 	n, err = writer.WriteMataData(offsetsArr)
 	if err != nil {
@@ -90,8 +91,7 @@ func dedupe(reader *bufio.Reader, writer *IO.DedupWriter) error {
 	}
 	writer.FlushData()
 
-	// write metadata offset
-	writer.WriteMataDataOffset(metadataOffset)
+	//writer.WriteMataDataOffset(metadataOffset) // for debug
 
 	return err
 }
@@ -101,7 +101,7 @@ func getBytes(reader *bufio.Reader) (*[]byte, error) {
 	logrus.Debugf("getBytes called\n")
 	buf := make([]byte, 0, config.ReadBufferSizeInBytes)
 	n, err := reader.Read(buf[:cap(buf)])
-	bufToRet := buf[:n]
+	buf = buf[:n]
 	if n == 0 {
 		if err == nil || err == io.EOF {
 			return nil, io.EOF
@@ -111,7 +111,7 @@ func getBytes(reader *bufio.Reader) (*[]byte, error) {
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
-	return &bufToRet, nil
+	return &buf, nil
 }
 
 
@@ -203,12 +203,12 @@ func createNewChunk (data *[]byte, writer *IO.DedupWriter) int  {
 	hash := crypto.Checksum(*data)
 	offset := writer.CurrentOffset
 	hashToOffset[hash] = offset
-	offsetToLength[offset] = len(*data)
+	//offsetToLength[offset] = len(*data)
 	n, err := writer.WriteData(data)
 	if err != nil {
 		logrus.Debugf("Error WriteString")
 	}
-	logrus.Debugf("hashToOffset[%d] = %d | data length - %d (%d)\n", hash, offset, len(*data), len(*data)+4)
+	logrus.Debugf("hashToOffset[%s] = %d | data length - %d (%d)\n", hash, offset, len(*data), len(*data)+4)
 	writer.CurrentOffset += n
 	return offset
 }

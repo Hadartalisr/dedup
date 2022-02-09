@@ -1,31 +1,30 @@
 package core
 
 import (
+	"Deduper/config"
 	"bytes"
+	"github.com/sirupsen/logrus"
 	"io"
 	"log"
 	"os"
 )
 
-var good  = 0
-var bad  = 0
-var badIndices = make([]int, 1)
+var equalSlices = 0
+var unequalSlices  = 0
 
 func Compare(inputFilePath, outputFilePath *string) {
-	equal := equal(*inputFilePath, *outputFilePath)
-	println("good ", good)
-	println("bad ", bad)
-	println()
-	if !equal {
-		print(":(")
+	equal(*inputFilePath, *outputFilePath)
+	logrus.Info("equalSlices ", equalSlices)
+	logrus.Info("unequalSlices ", unequalSlices)
+	if unequalSlices > 0 {
+		logrus.Info(":(")
 		return
 	}
-	print(":)")
+	logrus.Info(":)")
 }
 
-func equal(file1, file2 string) bool {
-	// Check file size ...
-	chunkSize := /*config.MinChunkSizeInBytes*/  1000
+func equal(file1, file2 string) {
+	chunkSize := config.MinChunkSizeInBytes
 	f1, err := os.Open(file1)
 	if err != nil {
 		log.Fatal(err)
@@ -48,20 +47,19 @@ func equal(file1, file2 string) bool {
 
 		if err1 != nil || err2 != nil {
 			if err1 == io.EOF && err2 == io.EOF {
-				return true
+				return
 			} else if err1 == io.EOF || err2 == io.EOF {
-				return false
+				return
 			} else {
 				log.Fatal(err1, err2)
 			}
 		}
 
 		if !bytes.Equal(b1, b2) {
-			//return false
-			bad++
+			unequalSlices++
 			println(int(offset))
 		} else  {
-			good++
+			equalSlices++
 		}
 	}
 }
