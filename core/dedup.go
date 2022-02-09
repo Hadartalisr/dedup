@@ -36,7 +36,7 @@ func Dedup(inputFilePath, outputFilePath *string) error{
 		return err
 	}
 	dedupWriter.FlushAll()
-	writeDebugMetaData(outputFilePath)
+	//writeDebugMetaData(outputFilePath)
 	return err
 }
 
@@ -82,7 +82,7 @@ func dedupe(reader *bufio.Reader, writer *IO.DedupWriter) error {
 		logrus.WithError(err)
 		return err
 	}
-	//metadataOffset := writer.CurrentOffset // for debug
+	metadataOffset := writer.CurrentOffset
 
 	// write metadata
 	n, err = writer.WriteMataData(offsetsArr)
@@ -91,7 +91,7 @@ func dedupe(reader *bufio.Reader, writer *IO.DedupWriter) error {
 	}
 	writer.FlushData()
 
-	//writer.WriteMataDataOffset(metadataOffset) // for debug
+	writer.WriteMataDataOffset(metadataOffset)
 
 	return err
 }
