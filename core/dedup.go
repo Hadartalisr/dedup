@@ -57,9 +57,6 @@ func dedupe(reader *bufio.Reader, writer *IO.DedupWriter) error {
 		if err != nil {
 			break
 		}
-		if writer.CurrentOffset == 18132792 {
-			println("here")
-		}
 		if len(buffer) < 2 * config.MaxChunkSizeInBytes {
 			newBytes, err = getBytes(reader)
 			if err != nil {
